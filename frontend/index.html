@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MilestoneX — Milestone-Based Decentralized Crowdfunding on Ethereum Sepolia. Funds locked in smart contract escrow and released stage-by-stage upon proof approval.">
+  <title>MilestoneX | Milestone-Based Decentralized Crowdfunding</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Ethers.js v5 CDN (must load before app scripts) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+
+  <!-- Contract ABI & config (plain script, sets window.CONTRACT_CONFIG) -->
+  <script src="contractConfig.js?v=2" defer></script>
+
+  <!-- Application Logic (plain script, reads from window.CONTRACT_CONFIG) -->
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <!-- NAVIGATION BAR -->
+  <nav class="navbar" id="main-nav">
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>MilestoneX</h1>
+          <span>Smart Escrow Crowdfunding</span>
+        </div>
+      </a>
+
+      <div class="nav-actions">
+        <!-- Sepolia Network Badge -->
+        <div class="network-badge" id="network-badge" title="Click to switch to Sepolia">
+          <span class="status-dot" id="network-dot"></span>
+          <span id="network-name">Not Connected</span>
+        </div>
+
+        <!-- Connect Wallet Button -->
+        <button class="btn-wallet" id="connect-wallet-btn">
+          <span class="wallet-icon">&#x1F98A;</span>
+          <span id="wallet-address-text">Connect MetaMask</span>
+          <span class="wallet-balance" id="wallet-balance-display" style="display:none;"></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- WRONG NETWORK WARNING BANNER -->
+  <div class="network-warning-bar" id="network-warning-bar" style="display:none;">
+    <div class="network-warning-content">
+      <span>&#9888;&#65039; <strong>Wrong Network:</strong> MilestoneX runs on <strong>Sepolia Testnet</strong>. You are currently on a different network.</span>
+      <button class="btn-switch-network" id="switch-network-btn">Switch to Sepolia</button>
+    </div>
+  </div>
+
+  <!-- HERO SECTION -->
+  <header class="hero">
+    <div class="hero-banner">
+      <div class="hero-content">
+        <div class="hero-tag">
+          <span>&#9889; Ethereum &middot; Sepolia Testnet &middot; Autonomous Escrow Protocol</span>
+        </div>
+        <h2 class="hero-title">Fair, Milestone-Governed <span>Decentralized Crowdfunding</span></h2>
+        <p class="hero-subtitle">
+          No platform fees. No trusted intermediaries. Pledged ETH is locked in a verifiable Solidity escrow and releases in stages only when the largest milestone backer approves the creator's proof of work.
+        </p>
+        <div class="hero-stats">
+          <div class="hero-stat-item">
+            <h3 id="stat-total-campaigns">&#8212;</h3>
+            <p>On-Chain Campaigns</p>
+          </div>
+          <div class="hero-stat-item">
+            <h3 id="stat-total-pledged">&#8212; ETH</h3>
+            <p>Total Escrow Volume</p>
+          </div>
+          <div class="hero-stat-item">
+            <h3>Pull Pattern</h3>
+            <p>Guaranteed Refund Security</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CAMPAIGN EXPLORER -->
+  <main class="explorer-section">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">Explore Campaigns</h2>
+        <p style="font-size:0.85rem; color:var(--text-muted);">Live on-chain data from Sepolia testnet</p>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+        <div class="filter-tabs">
+          <button class="filter-btn active" data-filter="all">All Campaigns</button>
+          <button class="filter-btn" data-filter="created">My Projects</button>
+          <button class="filter-btn" data-filter="backed">My Pledges</button>
+        </div>
+        <button class="btn btn-secondary" id="refresh-btn" title="Reload from chain" style="padding:0.5rem 0.9rem;">&#8635; Refresh</button>
+        <button class="btn btn-primary" id="open-create-modal-btn">+ Create Campaign</button>
+      </div>
+    </div>
+
+    <div class="campaigns-grid" id="campaigns-grid"></div>
+  </main>
+
+  <!-- MODAL: CREATE CAMPAIGN -->
+  <div class="modal-backdrop" id="create-campaign-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2>Launch Crowdfunding Campaign</h2>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">Creates a new milestone-governed escrow on Sepolia via your MetaMask wallet</p>
+        </div>
+        <button class="modal-close-btn" id="close-create-modal-btn">&#10005;</button>
+      </div>
+
+      <form id="create-campaign-form">
+        <div class="form-group">
+          <label for="campaign-title-input">Project Title</label>
+          <input type="text" id="campaign-title-input" class="form-control" placeholder="e.g. Decentralized AI Compute Cluster" required>
+        </div>
+
+        <div class="form-group">
+          <label for="campaign-desc-input">Description &amp; Deliverable Scope</label>
+          <textarea id="campaign-desc-input" class="form-control" placeholder="Describe the problem, solution, and roadmap..." required></textarea>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div class="form-group">
+            <label for="campaign-duration-input">Funding Window (Minutes)</label>
+            <input type="number" id="campaign-duration-input" class="form-control" value="1440" min="1" required>
+            <div class="form-hint">Time backers have to reach the funding goal</div>
+          </div>
+          <div class="form-group">
+            <label for="campaign-timeout-input">Stalled Milestone Timeout (Seconds)</label>
+            <input type="number" id="campaign-timeout-input" class="form-control" value="300" min="60" required>
+            <div class="form-hint">Inactivity threshold before backers can claim a stalled refund (min 60s)</div>
+          </div>
+        </div>
+
+        <!-- Milestones Configuration -->
+        <div class="form-group" style="margin-top:1.5rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+            <label style="margin-bottom:0;">Sequential Milestones <span style="color:var(--text-muted); font-size:0.82rem;">(funds release in this order)</span></label>
+            <button type="button" class="btn btn-secondary" id="add-milestone-row-btn" style="font-size:0.78rem; padding:0.3rem 0.7rem;">+ Add Milestone</button>
+          </div>
+          <div id="milestones-input-container">
+            <div class="milestone-input-row">
+              <input type="text" placeholder="Milestone 1 Deliverable" class="form-control milestone-desc-input" required>
+              <input type="number" step="0.001" min="0.001" placeholder="Target ETH" class="form-control milestone-target-input" required>
+              <button type="button" class="btn-remove-row" title="Remove" onclick="this.parentElement.remove()">&#10005;</button>
+            </div>
+            <div class="milestone-input-row">
+              <input type="text" placeholder="Milestone 2 Deliverable" class="form-control milestone-desc-input" required>
+              <input type="number" step="0.001" min="0.001" placeholder="Target ETH" class="form-control milestone-target-input" required>
+              <button type="button" class="btn-remove-row" title="Remove" onclick="this.parentElement.remove()">&#10005;</button>
+            </div>
+          </div>
+          <div class="form-hint">Campaign goal = sum of all milestone targets. Backers pledge ETH to individual milestones.</div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.8rem; margin-top:2rem;">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('close-create-modal-btn').click()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submit-create-btn">
+            <span id="submit-create-label">&#128640; Deploy Campaign to Escrow</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CAMPAIGN DETAILS & MILESTONES -->
+  <div class="modal-backdrop" id="campaign-details-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 id="modal-campaign-title">Campaign Title</h2>
+          <div class="modal-creator-tag">
+            <span id="modal-creator-address">Creator: 0x...</span>
+            <span>&bull;</span>
+            <span id="modal-goal-raised" style="font-family:var(--font-mono); color:var(--accent-cyan); font-weight:600;">0 / 0 ETH</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="close-details-modal-btn">&#10005;</button>
+      </div>
+
+      <p id="modal-campaign-desc" style="color:var(--text-secondary); font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;"></p>
+
+      <!-- Role-Aware Banner -->
+      <div id="modal-role-banner-container"></div>
+
+      <!-- Milestones Timeline -->
+      <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:0.8rem;">Project Milestones &amp; Verification Timeline</h3>
+      <div class="timeline" id="modal-milestones-timeline"></div>
+
+      <!-- Failed-Goal Refund Section -->
+      <div id="failed-refund-section" style="display:none; margin-top:1.5rem;">
+        <div style="background:rgba(244,63,94,0.1); border:1px solid rgba(244,63,94,0.35); border-radius:var(--radius-md); padding:1rem;">
+          <p style="color:#fda4af; font-size:0.88rem; margin-bottom:0.6rem;">
+            &#9888;&#65039; <strong>Campaign failed to reach its goal.</strong> If you pledged ETH to this campaign, you can reclaim it now.
+          </p>
+          <button class="btn btn-danger" id="claim-failed-refund-btn">Claim Failed-Goal Refund</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Transaction Loading Overlay -->
+  <div class="tx-overlay" id="tx-overlay" style="display:none;">
+    <div class="tx-spinner-card">
+      <div class="tx-spinner"></div>
+      <p id="tx-overlay-message">Waiting for MetaMask confirmation...</p>
+      <small id="tx-overlay-hash" style="color:var(--text-muted); font-family:monospace; word-break:break-all; margin-top:0.4rem; display:block;"></small>
+    </div>
+  </div>
+
+</body>
+</html>
